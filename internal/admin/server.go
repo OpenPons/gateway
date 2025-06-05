@@ -208,12 +208,12 @@ func (s *APIServer) registerRoutes() {
 
 			// Route configuration routes
 			adminRouter.Route("/routes", func(r chi.Router) {
-				r.Post("/", h.placeholderHandler) // h.CreateRoute
-				r.Get("/", h.placeholderHandler)  // h.ListRoutes
+				r.Post("/", h.CreateRoute)
+				r.Get("/", h.ListRoutes)
 				r.Route("/{routeID}", func(r chi.Router) {
-					r.Get("/", h.placeholderHandler)    // h.GetRoute
-					r.Patch("/", h.placeholderHandler)  // h.UpdateRoute
-					r.Delete("/", h.placeholderHandler) // h.DeleteRoute
+					r.Get("/", h.GetRoute)
+					r.Patch("/", h.UpdateRoute)
+					r.Delete("/", h.DeleteRoute)
 				})
 			})
 

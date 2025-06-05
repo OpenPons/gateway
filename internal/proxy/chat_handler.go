@@ -181,11 +181,7 @@ func (h *ChatProxyHandler) handleChatCompletionsLogic(w http.ResponseWriter, r *
 		//    telemetry.Logger.Error("Error during stream chat completion", zap.Error(err))
 		//    // span.RecordError(err)
 		// }
-		telemetry.Logger.Info("Streaming chat completion (placeholder)", zap.String("model_id", modelID))
-		fmt.Fprintf(w, "data: {\"id\":\"placeholder_stream_id\",\"object\":\"chat.completion.chunk\",\"created\":%d,\"model\":\"%s\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Streaming... (placeholder)\"},\"finish_reason\":null}]}\n\n", time.Now().Unix(), modelID)
-		// Simulate end of stream
-		// fmt.Fprintf(w, "data: {\"id\":\"placeholder_stream_id\",\"object\":\"chat.completion.chunk\",\"created\":%d,\"model\":\"%s\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n", time.Now().Unix(), modelID)
-		// fmt.Fprintf(w, "data: [DONE]\n\n")
+		// Placeholder SSE output removed; rely on adapter.StreamChatCompletion
 		// Actual streaming call
 		err = adapter.StreamChatCompletion(streamCtx, &chatReq, w) // Pass address of chatReq
 		if err != nil {
