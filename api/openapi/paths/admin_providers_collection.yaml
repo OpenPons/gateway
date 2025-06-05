@@ -1,0 +1,54 @@
+get:
+  tags:
+    - Admin - Providers
+  summary: List configured model & tool providers
+  description: Retrieves a list of all configured providers, with optional pagination.
+  security:
+    - BearerAuth: [] # Requires admin privileges, to be enforced by IAM
+  parameters:
+    - $ref: '../parameters/_index.yaml#/PageLimit'
+    - $ref: '../parameters/_index.yaml#/PageCursor'
+  responses:
+    '200':
+      description: A list of providers.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/ProviderList'
+    '401':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error401'
+    '403':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error403'
+    '500':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error500'
+
+post:
+  tags:
+    - Admin - Providers
+  summary: Register a new provider
+  description: Registers a new upstream provider (e.g., an LLM API endpoint, an MCP tool server).
+  security:
+    - BearerAuth: [] # Requires admin privileges
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/ProviderCreate'
+  responses:
+    '201':
+      description: Provider created successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Provider'
+    '400':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error400'
+    '401':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error401'
+    '403':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error403'
+    '409':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error409' # e.g. if provider name already exists
+    '500':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error500'

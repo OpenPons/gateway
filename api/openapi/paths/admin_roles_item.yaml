@@ -1,0 +1,97 @@
+parameters:
+  - name: roleName
+    in: path
+    required: true
+    description: Name of the role. Role names are unique identifiers.
+    schema:
+      type: string
+
+get:
+  tags:
+    - Admin - IAM
+  summary: Get a role by name
+  operationId: getRoleByName
+  security:
+    - BearerAuth: [\"admin:iam:read\"]
+  responses:
+    '200':
+      description: Successfully retrieved role.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Role'
+    '404':
+      description: Role not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+patch:
+  tags:
+    - Admin - IAM
+  summary: Update a role
+  operationId: updateRole
+  description: Update the permissions or description of an existing role. Role name cannot be changed.
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/RoleUpdateRequest'
+  responses:
+    '200':
+      description: Role updated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Role'
+    '404':
+      description: Role not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+delete:
+  tags:
+    - Admin - IAM
+  summary: Delete a role
+  operationId: deleteRole
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  responses:
+    '204':
+      description: Role deleted successfully.
+    '404':
+      description: Role not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    '409': # Conflict if role is still in use by bindings
+      description: Role cannot be deleted as it is currently in use by one or more role bindings.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

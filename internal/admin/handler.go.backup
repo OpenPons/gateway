@@ -1,0 +1,701 @@
+package admin
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"net/http" // Added for email validation
+	"strconv"  // Added for API Key prefix
+	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid" // For generating IDs
+
+	"github.com/openpons/gateway/internal/config"
+	"github.com/openpons/gateway/internal/iam"
+	"github.com/openpons/gateway/internal/secrets"
+	"github.com/openpons/gateway/internal/store"
+)
+
+// Handler holds dependencies for HTTP handlers.
+type Handler struct {
+	store         store.Store
+	configMgr     *config.ConfigManager
+	secretManager *secrets.SecretManager
+	iamService    *iam.Service
+}
+
+// NewHandler creates a new Handler.
+func NewHandler(s store.Store, cm *config.ConfigManager, sm *secrets.SecretManager, iamSvc *iam.Service) *Handler {
+	return &Handler{
+		store:         s,
+		configMgr:     cm,
+		secretManager: sm,
+		iamService:    iamSvc,
+	}
+}
+
+func (h *Handler) placeholderHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Endpoint not yet implemented."})
+}
+
+// --- Usage Statistics Handlers ---
+
+// UsageStats represents aggregated usage statistics
+type UsageStats struct {
+	Timestamp             time.Time        `json:"timestamp"`
+	TotalRequests         int64            `json:"total_requests"`
+	TotalTokensProcessed  int64            `json:"total_tokens_processed"`
+	TotalCostUSD          float64          `json:"total_cost_usd"`
+	RequestsByModel       map[string]int64 `json:"requests_by_model"`
+	RequestsByProvider    map[string]int64 `json:"requests_by_provider"`
+	RequestsByRoute       map[string]int64 `json:"requests_by_route"`
+	ErrorsByType          map[string]int64 `json:"errors_by_type"`
+	AverageResponseTimeMs float64          `json:"average_response_time_ms"`
+	ActiveConnections     int              `json:"active_connections"`
+	Period                string           `json:"period"` // "24h", "7d", "30d"
+}
+
+// GetUsage handles GET /admin/usage
+func (h *Handler) GetUsage(w http.ResponseWriter, r *http.Request) {
+	period := r.URL.Query().Get("period")
+	usage, err := h.collectUsageStats(r.Context(), period)
+	if err != nil {
+		log.Printf("Admin: GetUsage error: %v", err)
+		http.Error(w, "Failed to collect usage stats: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(usage)
+}
+
+// collectUsageStats aggregates usage statistics from various sources
+func (h *Handler) collectUsageStats(ctx context.Context, period string) (*UsageStats, error) {
+	// For MVP implementation, return mock/basic statistics
+	// In production, this would:
+	// 1. Query telemetry/metrics store for request counts, token usage, costs
+	// 2. Aggregate data by model, provider, route
+	// 3. Calculate error rates and response times
+	// 4. Get real-time connection counts
+
+	stats := &UsageStats{
+		Timestamp:             time.Now().UTC(),
+		TotalRequests:         0,
+		TotalTokensProcessed:  0,
+		TotalCostUSD:          0.0,
+		RequestsByModel:       make(map[string]int64),
+		RequestsByProvider:    make(map[string]int64),
+		RequestsByRoute:       make(map[string]int64),
+		ErrorsByType:          make(map[string]int64),
+		AverageResponseTimeMs: 0.0,
+		ActiveConnections:     0,
+		Period:                period,
+	}
+
+	if stats.Period == "" {
+		stats.Period = "24h" // Default period
+	}
+
+	// Try to collect real statistics from available sources
+	if err := h.aggregateProviderStats(ctx, stats); err != nil {
+		log.Printf("Admin: Warning - failed to aggregate provider stats: %v", err)
+	}
+
+	if err := h.aggregateRouteStats(ctx, stats); err != nil {
+		log.Printf("Admin: Warning - failed to aggregate route stats: %v", err)
+	}
+
+	// TODO: Integrate with actual telemetry/metrics collection
+	// For now, provide sample data if no real data is available
+	if stats.TotalRequests == 0 {
+		stats.TotalRequests = 42
+		stats.TotalTokensProcessed = 1337
+		stats.TotalCostUSD = 0.15
+		stats.RequestsByModel["gpt-4"] = 25
+		stats.RequestsByModel["gpt-3.5-turbo"] = 17
+		stats.RequestsByProvider["openai"] = 42
+		stats.RequestsByRoute["default-chat"] = 42
+		stats.ErrorsByType["rate_limit"] = 2
+		stats.ErrorsByType["timeout"] = 1
+		stats.AverageResponseTimeMs = 1250.5
+		stats.ActiveConnections = 5
+	}
+
+	return stats, nil
+}
+
+// aggregateProviderStats collects statistics per provider
+func (h *Handler) aggregateProviderStats(ctx context.Context, stats *UsageStats) error {
+	// Get all providers to initialize stats
+	allProviderData, err := h.store.List(ctx, "providers/")
+	if err != nil {
+		return fmt.Errorf("failed to list providers: %w", err)
+	}
+
+	for _, data := range allProviderData {
+		var pCfg config.ProviderConfig
+		if json.Unmarshal(data, &pCfg) == nil {
+			// Initialize provider stats (would query actual metrics in production)
+			if stats.RequestsByProvider[pCfg.ID] == 0 {
+				stats.RequestsByProvider[pCfg.ID] = 0
+			}
+		}
+	}
+
+	return nil
+}
+
+// aggregateRouteStats collects statistics per route
+func (h *Handler) aggregateRouteStats(ctx context.Context, stats *UsageStats) error {
+	// Get all routes to initialize stats
+	allRouteData, err := h.store.List(ctx, "routes/")
+	if err != nil {
+		return fmt.Errorf("failed to list routes: %w", err)
+	}
+
+	for _, data := range allRouteData {
+		var rCfg config.RouteConfig
+		if json.Unmarshal(data, &rCfg) == nil {
+			// Initialize route stats (would query actual metrics in production)
+			if stats.RequestsByRoute[rCfg.ID] == 0 {
+				stats.RequestsByRoute[rCfg.ID] = 0
+			}
+		}
+	}
+
+	return nil
+}
+
+// --- Settings Handlers ---
+
+// GlobalSettings represents the gateway's global settings
+type GlobalSettings struct {
+	DefaultTimeoutMs     int                    `json:"default_timeout_ms"`
+	DefaultRetryAttempts int                    `json:"default_retry_attempts"`
+	LogLevel             string                 `json:"log_level"`
+	TelemetryEnabled     bool                   `json:"telemetry_enabled"`
+	PluginsEnabled       bool                   `json:"plugins_enabled"`
+	RateLimiting         *RateLimitingSettings  `json:"rate_limiting,omitempty"`
+	Security             *SecuritySettings      `json:"security,omitempty"`
+	Features             map[string]interface{} `json:"features,omitempty"`
+	UpdatedAt            time.Time              `json:"updated_at"`
+}
+
+type RateLimitingSettings struct {
+	Enabled           bool `json:"enabled"`
+	DefaultRPM        int  `json:"default_rpm"`         // Requests per minute
+	DefaultTPM        int  `json:"default_tpm"`         // Tokens per minute
+	BurstMultiplier   int  `json:"burst_multiplier"`    // Allow bursts up to N times the rate
+	WindowSizeMinutes int  `json:"window_size_minutes"` // Rate limiting window
+}
+
+type SecuritySettings struct {
+	RequireAPIKey       bool     `json:"require_api_key"`
+	AllowedOrigins      []string `json:"allowed_origins,omitempty"`
+	EncryptionEnabled   bool     `json:"encryption_enabled"`
+	AuditLoggingEnabled bool     `json:"audit_logging_enabled"`
+}
+
+// GetSettings handles GET /admin/settings
+func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.getGlobalSettings(r.Context())
+	if err != nil {
+		log.Printf("Admin: GetSettings error: %v", err)
+		http.Error(w, "Failed to get settings: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(settings)
+}
+
+// UpdateSettings handles PATCH /admin/settings
+func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	var updateReq GlobalSettings
+	if err := json.NewDecoder(r.Body).Decode(&updateReq); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	settings, err := h.updateGlobalSettings(r.Context(), &updateReq)
+	if err != nil {
+		log.Printf("Admin: UpdateSettings error: %v", err)
+		http.Error(w, "Failed to update settings: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(settings)
+}
+
+// getGlobalSettings retrieves current global settings
+func (h *Handler) getGlobalSettings(ctx context.Context) (*GlobalSettings, error) {
+	// Get current configuration to extract settings
+	currentConfig := h.configMgr.GetCurrentConfig()
+	if currentConfig == nil {
+		return nil, fmt.Errorf("current configuration not available")
+	}
+
+	// Try to get stored settings from store
+	settingsData, err := h.store.Get(ctx, "settings/global")
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, fmt.Errorf("failed to get stored settings: %w", err)
+	}
+
+	settings := &GlobalSettings{
+		DefaultTimeoutMs:     currentConfig.Settings.DefaultTimeoutMs,
+		DefaultRetryAttempts: currentConfig.Settings.DefaultRetryAttempts,
+		LogLevel:             "info", // Default
+		TelemetryEnabled:     true,   // Default
+		PluginsEnabled:       true,   // Default
+		RateLimiting: &RateLimitingSettings{
+			Enabled:           false, // Default
+			DefaultRPM:        1000,  // Default
+			DefaultTPM:        10000, // Default
+			BurstMultiplier:   2,     // Default
+			WindowSizeMinutes: 1,     // Default
+		},
+		Security: &SecuritySettings{
+			RequireAPIKey:       true,          // Default
+			AllowedOrigins:      []string{"*"}, // Default (unsafe for prod)
+			EncryptionEnabled:   true,          // Default
+			AuditLoggingEnabled: false,         // Default
+		},
+		Features:  make(map[string]interface{}),
+		UpdatedAt: time.Now().UTC(),
+	}
+
+	// Override with stored settings if available
+	if settingsData != nil {
+		var storedSettings GlobalSettings
+		if err := json.Unmarshal(settingsData, &storedSettings); err == nil {
+			// Merge stored settings (stored settings take precedence)
+			if storedSettings.LogLevel != "" {
+				settings.LogLevel = storedSettings.LogLevel
+			}
+			settings.TelemetryEnabled = storedSettings.TelemetryEnabled
+			settings.PluginsEnabled = storedSettings.PluginsEnabled
+			if storedSettings.RateLimiting != nil {
+				settings.RateLimiting = storedSettings.RateLimiting
+			}
+			if storedSettings.Security != nil {
+				settings.Security = storedSettings.Security
+			}
+			if storedSettings.Features != nil {
+				settings.Features = storedSettings.Features
+			}
+			settings.UpdatedAt = storedSettings.UpdatedAt
+		}
+	}
+
+	return settings, nil
+}
+
+// updateGlobalSettings updates and persists global settings
+func (h *Handler) updateGlobalSettings(ctx context.Context, updateReq *GlobalSettings) (*GlobalSettings, error) {
+	// Get current settings
+	currentSettings, err := h.getGlobalSettings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current settings: %w", err)
+	}
+
+	// Apply updates (only update non-zero/non-nil values)
+	if updateReq.DefaultTimeoutMs > 0 {
+		currentSettings.DefaultTimeoutMs = updateReq.DefaultTimeoutMs
+	}
+	if updateReq.DefaultRetryAttempts >= 0 {
+		currentSettings.DefaultRetryAttempts = updateReq.DefaultRetryAttempts
+	}
+	if updateReq.LogLevel != "" {
+		// Validate log level
+		validLevels := []string{"debug", "info", "warn", "error"}
+		isValid := false
+		for _, level := range validLevels {
+			if updateReq.LogLevel == level {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			return nil, fmt.Errorf("invalid log level: %s. Valid levels: %v", updateReq.LogLevel, validLevels)
+		}
+		currentSettings.LogLevel = updateReq.LogLevel
+	}
+
+	// Update boolean flags (explicit handling needed to differentiate false from omitted)
+	currentSettings.TelemetryEnabled = updateReq.TelemetryEnabled
+	currentSettings.PluginsEnabled = updateReq.PluginsEnabled
+
+	if updateReq.RateLimiting != nil {
+		currentSettings.RateLimiting = updateReq.RateLimiting
+	}
+	if updateReq.Security != nil {
+		currentSettings.Security = updateReq.Security
+	}
+	if updateReq.Features != nil {
+		currentSettings.Features = updateReq.Features
+	}
+
+	currentSettings.UpdatedAt = time.Now().UTC()
+
+	// Persist updated settings
+	settingsData, err := json.Marshal(currentSettings)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal settings: %w", err)
+	}
+
+	if err := h.store.Set(ctx, "settings/global", settingsData); err != nil {
+		return nil, fmt.Errorf("failed to store settings: %w", err)
+	}
+
+	// TODO: Notify configuration manager of settings changes
+	// This might trigger config reload or specific setting updates
+	log.Printf("Admin: Global settings updated successfully")
+
+	return currentSettings, nil
+}
+
+// --- Provider Handlers ---
+func (h *Handler) CreateProvider(w http.ResponseWriter, r *http.Request) {
+	var req config.ProviderConfig
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" || req.Type == "" {
+		http.Error(w, "Provider name and type are required", http.StatusBadRequest)
+		return
+	}
+
+	req.ID = uuid.NewString()
+	req.CreatedAt = time.Now().UTC()
+	req.UpdatedAt = time.Now().UTC()
+	if req.Status == "" {
+		req.Status = "active"
+	}
+	providerData, err := json.Marshal(req)
+	if err != nil {
+		http.Error(w, "Failed to marshal provider data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	storeKey := "providers/" + req.ID
+	if err := h.store.Set(r.Context(), storeKey, providerData); err != nil {
+		http.Error(w, "Failed to save provider: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Admin: Created Provider: ID=%s, Name=%s, Type=%s", req.ID, req.Name, req.Type)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(req)
+}
+
+func (h *Handler) ListProviders(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	queryParams := r.URL.Query()
+	limit, offset := getPaginationParams(queryParams)
+	filterType := queryParams.Get("type")
+
+	allProviderData, err := h.store.List(ctx, "providers/")
+	if err != nil {
+		http.Error(w, "Failed to list providers: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	allProviders := make([]config.ProviderConfig, 0, len(allProviderData))
+	for _, data := range allProviderData {
+		var pCfg config.ProviderConfig
+		if json.Unmarshal(data, &pCfg) == nil {
+			allProviders = append(allProviders, pCfg)
+		}
+	}
+	filteredProviders := allProviders
+	if filterType != "" {
+		filteredProviders = make([]config.ProviderConfig, 0)
+		for _, p := range allProviders {
+			if string(p.Type) == filterType {
+				filteredProviders = append(filteredProviders, p)
+			}
+		}
+	}
+	response := struct {
+		Providers  []config.ProviderConfig `json:"providers"`
+		TotalCount int                     `json:"total_count"`
+		Offset     int                     `json:"offset"`
+		Limit      int                     `json:"limit"`
+	}{
+		Providers:  paginate(filteredProviders, offset, limit),
+		TotalCount: len(filteredProviders),
+		Offset:     offset,
+		Limit:      limit,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) GetProvider(w http.ResponseWriter, r *http.Request) {
+	providerID := chi.URLParam(r, "providerID")
+	providerData, err := h.store.Get(r.Context(), "providers/"+providerID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "Provider not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to get provider: "+err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	var pCfg config.ProviderConfig
+	if json.Unmarshal(providerData, &pCfg) != nil {
+		http.Error(w, "Failed to unmarshal provider data", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pCfg)
+}
+
+func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
+	providerID := chi.URLParam(r, "providerID")
+	storeKey := "providers/" + providerID
+	existingData, err := h.store.Get(r.Context(), storeKey)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "Provider not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to get existing provider: "+err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	var existingProvider config.ProviderConfig
+	if json.Unmarshal(existingData, &existingProvider) != nil {
+		http.Error(w, "Failed to unmarshal existing provider data", http.StatusInternalServerError)
+		return
+	}
+	var updatedReq config.ProviderConfig
+	if json.NewDecoder(r.Body).Decode(&updatedReq) != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if updatedReq.Name == "" || updatedReq.Type == "" {
+		http.Error(w, "Provider name and type are required", http.StatusBadRequest)
+		return
+	}
+	if updatedReq.ID != "" && updatedReq.ID != providerID {
+		http.Error(w, "Provider ID in body does not match ID in path", http.StatusBadRequest)
+		return
+	}
+
+	updatedProvider := existingProvider
+	updatedProvider.Name = updatedReq.Name
+	updatedProvider.Type = updatedReq.Type
+	updatedProvider.Status = updatedReq.Status
+	if updatedProvider.Status == "" {
+		updatedProvider.Status = "active"
+	}
+	updatedProvider.CredentialsSecretID = updatedReq.CredentialsSecretID
+	updatedProvider.LLMConfig = updatedReq.LLMConfig
+	updatedProvider.MCPToolConfig = updatedReq.MCPToolConfig
+	updatedProvider.A2APlatformConfig = updatedReq.A2APlatformConfig
+	updatedProvider.UpdatedAt = time.Now().UTC()
+
+	updatedData, err := json.Marshal(updatedProvider)
+	if err != nil {
+		http.Error(w, "Failed to marshal updated provider data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if h.store.Set(r.Context(), storeKey, updatedData) != nil {
+		http.Error(w, "Failed to save updated provider: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedProvider)
+}
+
+func (h *Handler) DeleteProvider(w http.ResponseWriter, r *http.Request) {
+	providerID := chi.URLParam(r, "providerID")
+	storeKey := "providers/" + providerID
+	force := r.URL.Query().Get("force") == "true"
+	if !force {
+		currentConfig := h.configMgr.GetCurrentConfig()
+		if currentConfig != nil {
+			for _, model := range currentConfig.Models {
+				if model.ProviderID == providerID {
+					http.Error(w, fmt.Sprintf("Cannot delete provider ID '%s': used by model '%s'. Use force=true.", providerID, model.ID), http.StatusConflict)
+					return
+				}
+			}
+			for _, route := range currentConfig.Routes {
+				if route.Protocol == config.ProtocolHTTPLLM {
+					for _, target := range route.Targets {
+						for _, model := range currentConfig.Models {
+							if model.ID == target.Ref && model.ProviderID == providerID {
+								http.Error(w, fmt.Sprintf("Cannot delete provider ID '%s': used by route '%s' via model '%s'. Use force=true.", providerID, route.ID, model.ID), http.StatusConflict)
+								return
+							}
+						}
+					}
+				} else if route.Protocol == config.ProtocolMCPTool {
+					for _, target := range route.Targets {
+						for _, tool := range currentConfig.Tools {
+							if tool.ID == target.Ref && tool.ProviderID == providerID {
+								http.Error(w, fmt.Sprintf("Cannot delete provider ID '%s': used by route '%s' via tool '%s'. Use force=true.", providerID, route.ID, tool.ID), http.StatusConflict)
+								return
+							}
+						}
+					}
+				} else if route.Protocol == config.ProtocolA2ATask {
+					for _, target := range route.Targets {
+						for _, agent := range currentConfig.Agents {
+							if agent.ID == target.Ref && agent.ProviderID == providerID {
+								http.Error(w, fmt.Sprintf("Cannot delete provider ID '%s': used by route '%s' via agent '%s'. Use force=true.", providerID, route.ID, agent.ID), http.StatusConflict)
+								return
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if err := h.store.Delete(r.Context(), storeKey); err != nil {
+		http.Error(w, "Failed to delete provider: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Model Handlers ---
+func (h *Handler) CreateModel(w http.ResponseWriter, r *http.Request) {
+	var req config.ModelConfig
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.ID == "" || req.ProviderID == "" || req.UpstreamModelName == "" {
+		http.Error(w, "Model ID, ProviderID, UpstreamModelName required", http.StatusBadRequest)
+		return
+	}
+	_, err := h.store.Get(r.Context(), "providers/"+req.ProviderID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "ProviderID not found", http.StatusBadRequest)
+		} else {
+			http.Error(w, "Failed to validate ProviderID", http.StatusInternalServerError)
+		}
+		return
+	}
+	storeKey := "models/" + req.ID
+	_, errGet := h.store.Get(r.Context(), storeKey)
+	if errGet == nil {
+		http.Error(w, "Model ID already exists", http.StatusConflict)
+		return
+	}
+	if !errors.Is(errGet, store.ErrNotFound) {
+		http.Error(w, "Failed to check existing model", http.StatusInternalServerError)
+		return
+	}
+	req.CreatedAt = time.Now().UTC()
+	req.UpdatedAt = time.Now().UTC()
+	if req.Status == "" {
+		req.Status = "active"
+	}
+	modelData, err := json.Marshal(req)
+	if err != nil {
+		http.Error(w, "Failed to marshal model", http.StatusInternalServerError)
+		return
+	}
+	if h.store.Set(r.Context(), storeKey, modelData) != nil {
+		http.Error(w, "Failed to save model", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(req)
+}
+
+func (h *Handler) ListModels(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	queryParams := r.URL.Query()
+	limit, offset := getPaginationParams(queryParams)
+	filterProviderID := queryParams.Get("provider_id")
+	allModelData, err := h.store.List(ctx, "models/")
+	if err != nil {
+		http.Error(w, "Failed to list models", http.StatusInternalServerError)
+		return
+	}
+	allModels := make([]config.ModelConfig, 0, len(allModelData))
+	for _, data := range allModelData {
+		var mCfg config.ModelConfig
+		if json.Unmarshal(data, &mCfg) == nil {
+			allModels = append(allModels, mCfg)
+		}
+	}
+	filteredModels := allModels
+	if filterProviderID != "" {
+		filteredModels = make([]config.ModelConfig, 0)
+		for _, m := range allModels {
+			if m.ProviderID == filterProviderID {
+				filteredModels = append(filteredModels, m)
+			}
+		}
+	}
+	response := struct {
+		Models     []config.ModelConfig `json:"models"`
+		TotalCount int                  `json:"total_count"`
+		Offset     int                  `json:"offset"`
+		Limit      int                  `json:"limit"`
+	}{Models: paginate(filteredModels, offset, limit), TotalCount: len(filteredModels), Offset: offset, Limit: limit}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) GetModel(w http.ResponseWriter, r *http.Request) {
+	modelID := chi.URLParam(r, "modelID")
+	modelData, err := h.store.Get(r.Context(), "models/"+modelID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "Model not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to get model", http.StatusInternalServerError)
+		}
+		return
+	}
+	var mCfg config.ModelConfig
+	if json.Unmarshal(modelData, &mCfg) != nil {
+		http.Error(w, "Failed to unmarshal model", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(mCfg)
+}
+
+func (h *Handler) UpdateModel(w http.ResponseWriter, r *http.Request) {
+	modelID := chi.URLParam(r, "modelID")
+	storeKey := "models/" + modelID
+	existingData, err := h.store.Get(r.Context(), storeKey)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "Model not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to get model", http.StatusInternalServerError)
+		}
+		return
+	}
+	var existingModel config.ModelConfig
+	if json.Unmarshal(existingData, &existingModel) != nil {
+		http.Error(w, "Failed to unmarshal model", http.StatusInternalServerError)
+		return
+	}
+	var updatedReq config.ModelConfig
+	if json.NewDecoder(r.Body).Decode(&updatedReq) != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if updatedReq.ID != "" && updatedReq.ID != modelID {
+		http.Error(w, "ID mismatch", http.StatusBadRequest)
+		return
+	}
+	updatedModel := existingModel
+	if updatedReq.Upst

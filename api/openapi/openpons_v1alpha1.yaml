@@ -1,0 +1,230 @@
+openapi: 3.1.0
+info:
+  title: OpenPons Gateway API
+  version: v1alpha1
+  description: |
+    **OpenPons** is a unified AI gateway that proxies large-language-model (LLM)
+    requests, Model-Context-Protocol (MCP) calls, and Agent-to-Agent (A2A) tool
+    invocations through a single, secure endpoint.
+
+    This **v1alpha1** spec focuses on core building-blocks: authentication, model
+    proxying, tool invocation, dynamic runtime configuration, and usage
+    reporting.
+  contact:
+    name: OpenPons Engineering
+    url: https://github.com/openpons/gateway # Assuming this is the repo
+    email: hi@openpons.com
+servers:
+  - url: https://{host}/v1alpha1
+    description: Production Gateway (replace {host} with your domain)
+    variables:
+      host:
+        default: gateway.example.com
+        description: The hostname of your OpenPons Gateway instance.
+  - url: http://localhost:8080/v1alpha1
+    description: Local Admin API
+  - url: http://localhost:10000/v1alpha1
+    description: Local Proxy
+security:
+  - BearerAuth: []
+  - OAuth2: ["openid", "profile", "email"]
+
+tags:
+  - name: Auth
+    description: Obtain and refresh access tokens
+  - name: Proxy - LLM
+    description: Low-latency pass-through endpoints for LLM calls
+  - name: Proxy - Tools & Agents
+    description: Endpoints for MCP tool and A2A agent invocations
+  - name: Admin - Providers
+    description: CRUD for model, tool, and agent providers
+  - name: Admin - Models
+    description: CRUD for specific model configurations
+  - name: Admin - Tools
+    description: CRUD for specific tool configurations (MCP)
+  - name: Admin - Agents
+    description: CRUD for specific agent configurations (A2A)
+  - name: Admin - Routes
+    description: Dynamic routing rules & traffic weights
+  - name: Admin - IAM
+    description: Manage Users, Groups, Roles, and Bindings
+  - name: Admin - Secrets
+    description: Manage secrets for provider authentication
+  - name: Admin - Plugins
+    description: Manage and configure plugins
+  - name: Usage
+    description: Cost, token, and latency metrics
+  - name: Settings
+    description: Gateway global settings
+  - name: Health
+    description: Liveness & readiness probes
+
+paths:
+  /auth/token:
+    $ref: './paths/auth_token.yaml'
+  /healthz:
+    $ref: './paths/healthz.yaml'
+  /readyz:
+    $ref: './paths/readyz.yaml'
+
+  # Proxy Endpoints
+  /proxy/models/{modelId}/chat/completions:
+    $ref: './paths/proxy_chat_completions.yaml'
+  /proxy/models/{modelId}/embeddings:
+    $ref: './paths/proxy_embeddings.yaml'
+  /proxy/models/{modelId}/audio/transcriptions:
+    $ref: './paths/proxy_audio_transcriptions.yaml'
+  /proxy/models/{modelId}/audio/speech:
+    $ref: './paths/proxy_audio_speech.yaml'
+  /proxy/tools/{toolId}/invoke:
+    $ref: './paths/proxy_tools_invoke.yaml'
+  # Potentially /proxy/agents/{agentId}/invoke for A2A if distinct from tools
+
+  # Admin Endpoints
+  /admin/providers:
+    $ref: './paths/admin_providers_collection.yaml'
+  /admin/providers/{providerId}:
+    $ref: './paths/admin_providers_item.yaml'
+  /admin/providers/{providerId}/status:
+    $ref: './paths/admin_providers_status.yaml'
+
+  /admin/models:
+    $ref: './paths/admin_models_collection.yaml'
+  /admin/models/{modelInternalId}: # Changed from modelId to avoid conflict with proxy path
+    $ref: './paths/admin_models_item.yaml'
+  /admin/models/{modelInternalId}/status:
+    $ref: './paths/admin_models_status.yaml'
+
+  /admin/tools:
+    $ref: './paths/admin_tools_collection.yaml'
+  /admin/tools/{toolInternalId}: # Changed from toolId
+    $ref: './paths/admin_tools_item.yaml'
+  /admin/tools/{toolInternalId}/status:
+    $ref: './paths/admin_tools_status.yaml'
+
+  /admin/agents:
+    $ref: './paths/admin_agents_collection.yaml'
+  /admin/agents/{agentId}:
+    $ref: './paths/admin_agents_item.yaml'
+  # Potentially /admin/agents/{agentId}/status
+
+  /admin/routes:
+    $ref: './paths/admin_routes_collection.yaml'
+  /admin/routes/{routeId}:
+    $ref: './paths/admin_routes_item.yaml'
+
+  /admin/users:
+    $ref: './paths/admin_users_collection.yaml'
+  /admin/users/{userId}:
+    $ref: './paths/admin_users_item.yaml'
+  /admin/groups:
+    $ref: './paths/admin_groups_collection.yaml'
+  /admin/groups/{groupId}:
+    $ref: './paths/admin_groups_item.yaml'
+  /admin/groups/{groupId}/members:
+    $ref: './paths/admin_groups_members.yaml'
+  /admin/roles:
+    $ref: './paths/admin_roles_collection.yaml'
+  /admin/roles/{roleName}: # Assuming roleName is unique identifier
+    $ref: './paths/admin_roles_item.yaml'
+  /admin/bindings:
+    $ref: './paths/admin_bindings_collection.yaml'
+  /admin/bindings/{bindingId}:
+    $ref: './paths/admin_bindings_item.yaml'
+
+  /admin/iam/serviceaccounts:
+    $ref: './paths/admin_serviceaccounts_collection.yaml'
+  /admin/iam/serviceaccounts/{serviceAccountId}:
+    $ref: './paths/admin_serviceaccounts_item.yaml'
+
+  /admin/iam/users/{userId}/apikeys:
+    $ref: './paths/admin_user_apikeys_collection.yaml'
+  /admin/iam/apikeys/{apiKeyId}:
+    $ref: './paths/admin_apikeys_item.yaml'
+
+  /admin/secrets:
+    $ref: './paths/admin_secrets_collection.yaml'
+  /admin/secrets/{secretId}:
+    $ref: './paths/admin_secrets_item.yaml'
+
+  /admin/plugins:
+    $ref: './paths/admin_plugins_collection.yaml'
+  /admin/plugins/{pluginId}: # For global config, enable/disable
+    $ref: './paths/admin_plugins_item.yaml'
+  /admin/plugins/{pluginId}/config_schema:
+    $ref: './paths/admin_plugins_config_schema.yaml'
+
+
+  /usage:
+    $ref: './paths/usage.yaml'
+  /settings: # New top-level resource from design doc
+    $ref: './paths/settings.yaml'
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/oauth2/authorize # Generic example
+          tokenUrl: https://auth.example.com/oauth2/token # Generic example
+          scopes:
+            openid: OpenID Connect
+            profile: Basic profile information
+            email: Email address
+            groups: Group membership information # If OIDC provider supports this scope
+
+  schemas:
+    $ref: './schemas/_index.yaml'
+
+  parameters:
+    $ref: './parameters/_index.yaml'
+
+  responses:
+    Error400:
+      description: Bad Request - The request was malformed or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error401:
+      description: Unauthorized - Authentication credentials are required and are missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error403:
+      description: Forbidden - The authenticated user does not have permission to perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error404:
+      description: Not Found - The requested resource could not be found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error409:
+      description: Conflict - The request could not be completed due to a conflict with the current state of the resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error500:
+      description: Internal Server Error - An unexpected error occurred on the server.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error503:
+      description: Service Unavailable - The server is temporarily unable to handle the request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

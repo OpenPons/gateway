@@ -1,0 +1,58 @@
+parameters:
+  - name: bindingId
+    in: path
+    required: true
+    description: Identifier of the role binding.
+    schema:
+      type: string
+      format: uuid # Assuming binding IDs are UUIDs
+
+get:
+  tags:
+    - Admin - IAM
+  summary: Get a role binding by ID
+  operationId: getRoleBindingById
+  security:
+    - BearerAuth: [\"admin:iam:read\"]
+  responses:
+    '200':
+      description: Successfully retrieved role binding.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/RoleBinding'
+    '404':
+      description: Role binding not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+delete:
+  tags:
+    - Admin - IAM
+  summary: Delete a role binding
+  operationId: deleteRoleBinding
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  responses:
+    '204':
+      description: Role binding deleted successfully.
+    '404':
+      description: Role binding not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

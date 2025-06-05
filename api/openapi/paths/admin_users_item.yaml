@@ -1,0 +1,91 @@
+parameters:
+  - name: userId
+    in: path
+    required: true
+    description: Identifier of the user.
+    schema:
+      type: string
+      format: uuid
+
+get:
+  tags:
+    - Admin - IAM
+  summary: Get a user by ID
+  operationId: getUserById
+  security:
+    - BearerAuth: [\"admin:iam:read\"] # Example scope
+  responses:
+    '200':
+      description: Successfully retrieved user.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/User'
+    '404':
+      description: User not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+patch:
+  tags:
+    - Admin - IAM
+  summary: Update a user
+  operationId: updateUser
+  security:
+    - BearerAuth: [\"admin:iam:write\"] # Example scope
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/UserUpdateRequest'
+  responses:
+    '200':
+      description: User updated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/User'
+    '404':
+      description: User not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+delete:
+  tags:
+    - Admin - IAM
+  summary: Delete a user
+  operationId: deleteUser
+  security:
+    - BearerAuth: [\"admin:iam:write\"] # Example scope
+  responses:
+    '204':
+      description: User deleted successfully.
+    '404':
+      description: User not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

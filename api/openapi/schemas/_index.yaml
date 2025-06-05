@@ -1,0 +1,157 @@
+# This file will aggregate all schema definitions.
+# Example:
+# User:
+#   $ref: './user.yaml#/User'
+# Provider:
+#   $ref: './provider.yaml#/Provider'
+
+Error:
+  type: object
+  description: Standard error payload returned for 4xx/5xx codes
+  properties:
+    error_code: # Changed from 'error' to avoid keyword clash in some languages
+      type: string
+      description: Short error code (e.g., `rate_limit_exceeded`, `invalid_argument`)
+      example: "resource_not_found"
+    message:
+      type: string
+      description: Human-readable explanation of the error
+      example: "The requested user does not exist."
+    request_id:
+      type: string
+      format: uuid
+      description: Unique identifier for tracing this request
+      example: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+    details:
+      type: array
+      items:
+        type: object
+      description: Optional array of more specific error details or validation issues.
+      example:
+        - field: "email"
+          message: "Email address is not valid."
+
+Pagination:
+  type: object
+  properties:
+    next_cursor: # Changed from 'cursor' for clarity
+      type: string
+      nullable: true
+      description: Opaque cursor for fetching the next page of results. Null if no more pages.
+      example: "eyJvZmZzZXQiOjEwLCJsaW1pdCI6MTB9"
+    total_items: # Added for better client-side understanding
+      type: integer
+      description: Estimated total number of items across all pages.
+      example: 123
+    # 'has_more' can be inferred if next_cursor is null or not.
+
+TokenRequest:
+  type: object
+  oneOf:
+    - required: [apiKey]
+      properties:
+        apiKey: { type: string, description: "An OpenPons issued API key." }
+    - required: [grant_type, code, redirect_uri, client_id] # Standard OAuth2 Authorization Code Grant
+      properties:
+        grant_type: { type: string, enum: [authorization_code], description: "OAuth2 grant type." }
+        code: { type: string, description: "The authorization code received from the OIDC provider." }
+        redirect_uri: { type: string, format: uri, description: "The redirect URI used in the initial auth request." }
+        client_id: { type: string, description: "The OIDC client ID." } # Usually public
+
+TokenResponse:
+  type: object
+  properties:
+    access_token: { type: string, description: "The OpenPons JWT access token." }
+    token_type: { type: string, enum: [Bearer], default: "Bearer" }
+    expires_in: { type: integer, description: "Lifetime in seconds of the access token." }
+    refresh_token: { type: string, nullable: true, description: "Optional refresh token." }
+    scope: { type: string, nullable: true, description: "Space-separated list of scopes granted." }
+
+# Proxy Schemas
+ChatCompletionRequest: { $ref: './proxy_llm.yaml#/components/schemas/ChatCompletionRequest' }
+ChatCompletionResponse: { $ref: './proxy_llm.yaml#/components/schemas/ChatCompletionResponse' }
+EmbeddingRequest: { $ref: './proxy_llm.yaml#/components/schemas/EmbeddingRequest' }
+EmbeddingResponse: { $ref: './proxy_llm.yaml#/components/schemas/EmbeddingResponse' }
+AudioTranscriptionRequest: { $ref: './proxy_llm.yaml#/components/schemas/AudioTranscriptionRequest' }
+AudioTranscriptionResponse: { $ref: './proxy_llm.yaml#/components/schemas/AudioTranscriptionResponse' }
+AudioSpeechRequest: { $ref: './proxy_llm.yaml#/components/schemas/AudioSpeechRequest' }
+ToolInvokeRequest: { $ref: './proxy_tool_agent.yaml#/components/schemas/ToolInvokeRequest' }
+ToolInvokeResponse: { $ref: './proxy_tool_agent.yaml#/components/schemas/ToolInvokeResponse' }
+
+# Admin Schemas
+Provider: { $ref: './admin_provider.yaml#/components/schemas/Provider' }
+ProviderList: { $ref: './admin_provider.yaml#/components/schemas/ProviderList' }
+ProviderCreate: { $ref: './admin_provider.yaml#/components/schemas/ProviderCreate' }
+ProviderUpdate: { $ref: './admin_provider.yaml#/components/schemas/ProviderUpdate' }
+ProviderStatus: { $ref: './admin_provider.yaml#/components/schemas/ProviderStatus' }
+
+Model: { $ref: './admin_model.yaml#/components/schemas/Model' }
+ModelList: { $ref: './admin_model.yaml#/components/schemas/ModelList' }
+ModelCreate: { $ref: './admin_model.yaml#/components/schemas/ModelCreate' }
+ModelUpdate: { $ref: './admin_model.yaml#/components/schemas/ModelUpdate' }
+ModelStatus: { $ref: './admin_model.yaml#/components/schemas/ModelStatus' }
+
+Tool: { $ref: './admin_tool.yaml#/components/schemas/Tool' }
+ToolList: { $ref: './admin_tool.yaml#/components/schemas/ToolList' }
+ToolCreate: { $ref: './admin_tool.yaml#/components/schemas/ToolCreate' }
+ToolUpdate: { $ref: './admin_tool.yaml#/components/schemas/ToolUpdate' }
+ToolStatus: { $ref: './admin_tool.yaml#/components/schemas/ToolStatus' }
+
+Agent: { $ref: './admin_agent.yaml#/components/schemas/Agent' }
+AgentList: { $ref: './admin_agent.yaml#/components/schemas/AgentList' }
+AgentCreate: { $ref: './admin_agent.yaml#/components/schemas/AgentCreate' }
+AgentUpdate: { $ref: './admin_agent.yaml#/components/schemas/AgentUpdate' }
+
+Route: { $ref: './admin_route.yaml#/components/schemas/Route' }
+RouteList: { $ref: './admin_route.yaml#/components/schemas/RouteList' }
+RouteCreate: { $ref: './admin_route.yaml#/components/schemas/RouteCreate' }
+RouteUpdate: { $ref: './admin_route.yaml#/components/schemas/RouteUpdate' }
+
+# IAM Schemas
+User: { $ref: './admin_iam.yaml#/components/schemas/User' }
+UserList: { $ref: './admin_iam.yaml#/components/schemas/UserList' }
+UserCreateRequest: { $ref: './admin_iam.yaml#/components/schemas/UserCreateRequest' } # Corrected
+UserUpdateRequest: { $ref: './admin_iam.yaml#/components/schemas/UserUpdateRequest' } # Corrected
+
+Group: { $ref: './admin_iam.yaml#/components/schemas/Group' }
+GroupList: { $ref: './admin_iam.yaml#/components/schemas/GroupList' }
+GroupCreateRequest: { $ref: './admin_iam.yaml#/components/schemas/GroupCreateRequest' } # Corrected
+GroupUpdateRequest: { $ref: './admin_iam.yaml#/components/schemas/GroupUpdateRequest' } # Corrected
+GroupMemberModificationRequest: { $ref: './admin_iam.yaml#/components/schemas/GroupMemberModificationRequest' }
+
+Role: { $ref: './admin_iam.yaml#/components/schemas/Role' }
+RoleList: { $ref: './admin_iam.yaml#/components/schemas/RoleList' }
+RoleCreateRequest: { $ref: './admin_iam.yaml#/components/schemas/RoleCreateRequest' } # Corrected
+RoleUpdateRequest: { $ref: './admin_iam.yaml#/components/schemas/RoleUpdateRequest' } # Corrected
+
+RoleBinding: { $ref: './admin_iam.yaml#/components/schemas/RoleBinding' }
+RoleBindingList: { $ref: './admin_iam.yaml#/components/schemas/RoleBindingList' }
+RoleBindingCreateRequest: { $ref: './admin_iam.yaml#/components/schemas/RoleBindingCreateRequest' } # Corrected
+
+Permission: { $ref: './admin_iam.yaml#/components/schemas/Permission' } # Added
+Scope: { $ref: './admin_iam.yaml#/components/schemas/Scope' } # Added
+
+APIKey: { $ref: './admin_iam.yaml#/components/schemas/APIKey' } # Added
+APIKeyList: { $ref: './admin_iam.yaml#/components/schemas/APIKeyList' } # Added
+APIKeyCreateRequest: { $ref: './admin_iam.yaml#/components/schemas/APIKeyCreateRequest' } # Added
+APIKeyCreateResponse: { $ref: './admin_iam.yaml#/components/schemas/APIKeyCreateResponse' } # Added
+
+ServiceAccount: { $ref: './admin_iam.yaml#/components/schemas/ServiceAccount' } # Added
+ServiceAccountList: { $ref: './admin_iam.yaml#/components/schemas/ServiceAccountList' } # Added
+ServiceAccountCreateRequest: { $ref: './admin_iam.yaml#/components/schemas/ServiceAccountCreateRequest' } # Added
+ServiceAccountUpdateRequest: { $ref: './admin_iam.yaml#/components/schemas/ServiceAccountUpdateRequest' } # Added
+
+# Other Admin Schemas
+Secret: { $ref: './admin_secret.yaml#/components/schemas/Secret' }
+SecretList: { $ref: './admin_secret.yaml#/components/schemas/SecretList' }
+SecretCreateRequest: { $ref: './admin_secret.yaml#/components/schemas/SecretCreateRequest' }
+SecretCreateResponse: { $ref: './admin_secret.yaml#/components/schemas/SecretCreateResponse' }
+
+Plugin: { $ref: './admin_plugin.yaml#/components/schemas/Plugin' }
+PluginList: { $ref: './admin_plugin.yaml#/components/schemas/PluginList' }
+PluginConfigSchema: { $ref: './admin_plugin.yaml#/components/schemas/PluginConfigSchema' }
+PluginConfig: { $ref: './admin_plugin.yaml#/components/schemas/PluginConfig' }
+
+# Usage & Settings Schemas
+UsageSummary: { $ref: './usage.yaml#/components/schemas/UsageSummary' }
+Settings: { $ref: './settings.yaml#/components/schemas/Settings' }

@@ -1,0 +1,91 @@
+parameters:
+  - name: groupId
+    in: path
+    required: true
+    description: Identifier of the group.
+    schema:
+      type: string
+      format: uuid
+
+get:
+  tags:
+    - Admin - IAM
+  summary: Get a group by ID
+  operationId: getGroupById
+  security:
+    - BearerAuth: [\"admin:iam:read\"]
+  responses:
+    '200':
+      description: Successfully retrieved group.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Group'
+    '404':
+      description: Group not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+patch:
+  tags:
+    - Admin - IAM
+  summary: Update a group
+  operationId: updateGroup
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/GroupUpdateRequest'
+  responses:
+    '200':
+      description: Group updated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Group'
+    '404':
+      description: Group not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+delete:
+  tags:
+    - Admin - IAM
+  summary: Delete a group
+  operationId: deleteGroup
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  responses:
+    '204':
+      description: Group deleted successfully.
+    '404':
+      description: Group not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

@@ -1,0 +1,462 @@
+components:
+  schemas:
+    User:
+      type: object
+      description: Represents a user in the IAM system.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the user.
+          readOnly: true
+        email:
+          type: string
+          format: email
+          description: Email address of the user.
+        status:
+          type: string
+          enum: [active, disabled, pending]
+          description: Status of the user account.
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the user was created.
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the user was last updated.
+          readOnly: true
+      required:
+        - email
+        - status
+
+    UserCreateRequest:
+      type: object
+      description: Request body for creating a new user.
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address for the new user.
+        status:
+          type: string
+          enum: [active, disabled, pending]
+          default: pending
+          description: Initial status for the user account.
+      required:
+        - email
+
+    UserUpdateRequest:
+      type: object
+      description: Request body for updating an existing user. All fields are optional.
+      properties:
+        email:
+          type: string
+          format: email
+          description: New email address for the user.
+        status:
+          type: string
+          enum: [active, disabled]
+          description: New status for the user account.
+
+    UserList: # Note: Name changed from UserListResponse to match _index.yaml
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          # Assuming Pagination schema is defined elsewhere or will be added to _index.yaml
+          # For now, let's use a local definition or expect it to be in _index.yaml
+          $ref: './_index.yaml#/Pagination' # Or just '#/components/schemas/Pagination' if resolved globally
+
+    Group:
+      type: object
+      description: Represents a collection of users.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the group.
+          readOnly: true
+        name:
+          type: string
+          description: Name of the group.
+        member_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of User IDs who are members of this group.
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the group was created.
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the group was last updated.
+          readOnly: true
+      required:
+        - name
+
+    GroupCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        member_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - name
+
+    GroupUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        member_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    GroupList: # Note: Name changed from GroupListResponse
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+        pagination:
+          $ref: './_index.yaml#/Pagination'
+
+    Role:
+      type: object
+      description: Defines a set of permissions.
+      properties:
+        name:
+          type: string
+          description: Unique role name (e.g., \"admin\", \"model_operator\").
+        permissions:
+          type: array
+          items:
+            type: string # Using string directly as Permission schema is just a string type
+          description: List of permissions associated with this role (e.g., \"models:read\", \"routes:write\").
+        description:
+          type: string
+          nullable: true
+          description: Optional description of the role.
+      required:
+        - name
+        - permissions
+
+    RoleCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+          nullable: true
+      required:
+        - name
+        - permissions
+
+    RoleUpdateRequest:
+      type: object
+      properties:
+        permissions:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+          nullable: true
+
+    RoleList: # Note: Name changed from RoleListResponse
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        pagination:
+          $ref: './_index.yaml#/Pagination'
+
+    Permission:
+      type: string
+      description: |
+        A string representing an action on a resource.
+        Format: "resource_type:action[:instance_qualifier]"
+        Examples: "models:read", "routes:write", "proxy:invoke:model_xyz", "*:*" (superuser).
+
+    Scope:
+      type: object
+      description: Defines the context for a RoleBinding (e.g., global, specific project/route).
+      properties:
+        type:
+          type: string
+          description: Type of the scope (e.g., "global", "project", "route_id", "provider_id").
+        value:
+          type: string
+          nullable: true # Value might be null if type is global
+          description: Identifier of the resource if the scope is not global.
+      required:
+        - type
+
+    RoleBinding:
+      type: object
+      description: Links a principal (User, Group, or ServiceAccount) to a Role within a specific scope.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the role binding.
+          readOnly: true
+        principal_type:
+          type: string
+          enum: [user, group, service_account]
+          description: Type of the principal.
+        principal_id:
+          type: string
+          description: Identifier of the principal (User ID, Group ID, or Service Account ID).
+        role_name:
+          type: string
+          description: Name of the Role being bound.
+        scope:
+          $ref: '#/components/schemas/Scope'
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the binding was created.
+          readOnly: true
+      required:
+        - principal_type
+        - principal_id
+        - role_name
+
+    RoleBindingCreateRequest:
+      type: object
+      properties:
+        principal_type:
+          type: string
+          enum: [user, group, service_account]
+        principal_id:
+          type: string
+        role_name:
+          type: string
+        scope:
+          $ref: '#/components/schemas/Scope'
+      required:
+        - principal_type
+        - principal_id
+        - role_name
+
+    RoleBindingList: # Note: Name changed from RoleBindingListResponse
+      type: object
+      properties:
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleBinding'
+        pagination:
+          $ref: './_index.yaml#/Pagination'
+
+    APIKey:
+      type: object
+      description: Represents an API key for programmatic access. The actual key value is only shown on creation.
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the API key (e.g., prefix of the key).
+          readOnly: true
+        user_id:
+          type: string
+          format: uuid
+          description: User this key belongs to.
+        name:
+          type: string
+          nullable: true
+          description: Optional user-friendly name for the key.
+        role_names:
+          type: array
+          items:
+            type: string
+          description: Optional roles directly associated with this key, overriding user's roles for key-based auth.
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the key expires. Null means no expiration.
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: Timestamp when the key was last used.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when the key was created.
+        revoked:
+          type: boolean
+          readOnly: true
+          default: false
+          description: Whether the key has been revoked.
+
+    APIKeyCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          description: A user-friendly name for the API key.
+        role_names:
+          type: array
+          items:
+            type: string
+          description: Optional roles to associate directly with this key.
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional expiration timestamp for the key. Null means no expiration.
+
+    APIKeyCreateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier (prefix) of the API key.
+        key_value:
+          type: string
+          description: The actual API key. This is only shown on creation. Store it securely.
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        role_names:
+          type: array
+          items:
+            type: string
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    APIKeyList: # New schema, was APIKeyListResponse
+      type: object
+      properties:
+        api_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+        pagination:
+          $ref: './_index.yaml#/Pagination'
+
+    ServiceAccount:
+      type: object
+      description: Represents a non-human principal for programmatic access.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the service account.
+          readOnly: true
+        name:
+          type: string
+          description: Name of the service account.
+        description:
+          type: string
+          nullable: true
+          description: Optional description.
+        status:
+          type: string
+          enum: [active, disabled]
+          description: Status of the service account.
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the service account was created.
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the service account was last updated.
+          readOnly: true
+      required:
+        - name
+        - status
+
+    ServiceAccountCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, disabled]
+          default: active
+      required:
+        - name
+
+    ServiceAccountUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, disabled]
+
+    ServiceAccountList: # New schema, was ServiceAccountListResponse
+      type: object
+      properties:
+        service_accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceAccount'
+        pagination:
+          $ref: './_index.yaml#/Pagination'
+
+    # GroupMemberModificationRequest is already in _index.yaml, so it should be defined here if used by paths.
+    # From _index.yaml: GroupMemberModificationRequest: { $ref: './admin_iam.yaml#/components/schemas/GroupMemberModificationRequest' }
+    GroupMemberModificationRequest:
+      type: object
+      description: Request to add or remove members from a group.
+      properties:
+        add_member_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of User IDs to add to the group.
+        remove_member_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of User IDs to remove from the group.

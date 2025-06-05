@@ -1,0 +1,21 @@
+components:
+  schemas:
+    Settings: # Name aligned with _index.yaml
+      type: object
+      description: Global settings for the OpenPons gateway.
+      properties:
+        log_level:
+          type: string
+          enum: [debug, info, warn, error]
+          default: info
+          description: Gateway-wide logging level.
+        default_request_timeout_ms:
+          type: integer
+          default: 60000
+          description: Default timeout for upstream requests in milliseconds.
+        enable_experimental_feature_x: # Example, can be expanded
+          type: boolean
+          default: false
+          description: Toggle for an example experimental feature.
+      # Add other relevant global settings as needed.
+      # For PATCH operations on /admin/settings, all fields would typically be optional.

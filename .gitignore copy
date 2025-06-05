@@ -1,0 +1,142 @@
+###############################################################################
+# Core Go artifacts (compilation, testing, profiling)
+###############################################################################
+/bin/
+/_build/
+/_builds/
+/dist/
+/out/
+/_out/
+/_output/            # k8s-style
+*_linux_*
+*_darwin_*
+*_windows_*
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.a
+*.out
+*.test               # go test -c
+*.cov                # Ginkgo coverage
+*.cover*
+*.coverage
+coverage.*
+profile*.txt
+*.pprof
+cpu*.pprof
+mem*.pprof
+*.core
+*.dump
+test-report.json     # Ginkgo JSON report
+
+# Go workspaces
+go.work
+go.work.sum
+
+# Module cache (if it ever leaks into repo)
+pkg/
+
+###############################################################################
+# Dependencies — vendor and module tools
+###############################################################################
+vendor*
+.vendor-new
+vendor/
+
+###############################################################################
+# Generated / third-party code
+###############################################################################
+mock_*_test.go       # gomock / mockery
+mocks/
+testdata/mock/
+*.pb.go              # protobuf
+*.pb.gw.go
+wire_gen.go
+
+###############################################################################
+# IDEs & editors
+###############################################################################
+.vscode/
+*.code-workspace
+.vscode/launch.json
+.vscode/settings.json
+# JetBrains (GoLand / IDEA)
+.idea/
+*.iml
+*.iws
+out/
+# Vim / Sublime etc.
+*.swp
+*.swo
+*.tmp
+
+###############################################################################
+# Dev Containers
+###############################################################################
+.devcontainer/**/.cache/
+.devcontainer/**/.env.local
+.devcontainer/**/local.*
+.devcontainer/.devcontainer.local.env
+
+###############################################################################
+# CI / build-system artefacts
+###############################################################################
+.github/workflows/**/tmp/
+.github/workflows/**/cache/
+.circleci/**/cache/
+.jenkins/
+*.lastSuccessful
+.buildkite/**/artifacts/
+.bazel/*
+bazel-*
+dist/                   # added by goreleaser init
+*-build
+_local                  # custom build dir
+_artifacts
+_test
+
+###############################################################################
+# Docker & local-cluster helpers
+###############################################################################
+docker-compose.override.yml
+compose.override.yml
+docker-build/
+docker-local            # local pollution from `kind` setup script
+*.dockerfile~
+*.log
+
+###############################################################################
+# Documentation / site generators
+###############################################################################
+site/
+themes/
+docs/helm-values.md     # generated values doc
+.firebase               # Firebase hosting artefacts
+
+###############################################################################
+# E2E test & misc. project-specific paths
+###############################################################################
+# JUnit
+junit.xml
+junit-*.xml
+# Binary directory made by e2e scripts
+.bin/
+# Istio binary downloaded for kube2e tests
+istio-*/*
+# Local gateway config folder
+data
+# Rust target dir nested in envoy init code
+internal/envoyinit/rustformations/target/*
+
+###############################################################################
+# OS-level noise
+###############################################################################
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+*.orig
+*.bak
+~$*                    # Windows Office lock files

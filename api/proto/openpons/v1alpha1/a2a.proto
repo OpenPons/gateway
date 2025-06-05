@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package openpons.v1alpha1;
+
+option go_package = "github.com/openpons/gateway/pkg/api/v1alpha1/a2a;a2apb";
+
+import "google/protobuf/struct.proto"; // For flexible input/output
+
+// Service for Agent-to-Agent task execution
+service A2AGatewayService {
+  // Unary RPC for simple, short-lived tasks
+  rpc ExecuteTask(ExecuteTaskRequest) returns (ExecuteTaskResponse);
+
+  // Bi-directional streaming RPC for long-running or interactive tasks
+  rpc ExecuteTaskStream(stream TaskStreamMessage) returns (stream TaskStreamMessage);
+}
+
+// Request to execute a task on a target agent
+message ExecuteTaskRequest {
+  string target_agent_id = 1;     // ID of the agent to execute the task
+  string task_name = 2;           // Name/type of the task to be performed
+  google.protobuf.Struct input = 3; // Task-specific input parameters
+  map<string, string> metadata = 4; // For tracing, auth context, session IDs
+}
+
+// Response from a unary task execution
+message ExecuteTaskResponse {
+  string task_id = 1;             // Unique ID for this task instance
+  TaskStatus status = 2;          // Current status of the task
+  google.protobuf.Value output = 3; // Task-specific output/result
+  string error_message = 4;       // Error message if status is FAILED
+}
+
+// Enum for task status
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;
+  TASK_STATUS_RUNNING = 2;
+  TASK_STATUS_COMPLETED = 3;
+  TASK_STATUS_FAILED = 4;
+  TASK_STATUS_CANCELLED = 5;
+}
+
+// Message for streaming task interactions
+message TaskStreamMessage {
+  string task_id = 1; // ID of the task this message pertains to
+
+  oneof payload {
+    ExecuteTaskRequest initial_request = 2; // First message from client to initiate
+    PartialOutput partial_output = 3;       // Intermediate output from agent
+    StatusUpdate status_update = 4;         // Agent providing status change
+    FinalResult final_result = 5;           // Final result from agent
+    ClientInput client_input = 6;           // Input from client during an interactive stream
+    ErrorDetails error_details = 7;         // Error reported by agent or gateway
+  }
+}
+
+message PartialOutput {
+  google.protobuf.Value data = 1; // Chunk of data or intermediate result
+}
+
+message StatusUpdate {
+  TaskStatus status = 1;
+  string message = 2; // Optional message with status
+}
+
+message FinalResult {
+  google.protobuf.Value output = 1; // Final output of the task
+}
+
+message ClientInput {
+  google.protobuf.Value data = 1; // Input provided by the client mid-stream
+}
+
+message ErrorDetails {
+  int32 code = 1;
+  string message = 2;
+  google.protobuf.Struct details = 3;
+}

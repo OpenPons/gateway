@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+package openpons.v1alpha1;
+
+option go_package = "github.com/openpons/gateway/pkg/api/v1alpha1/extproc;extprocpb";
+
+import "google/protobuf/struct.proto";
+
+// Service definition for OpenPons plugins (compatible with go-plugin)
+// This service will be implemented by each out-of-process plugin.
+// The OpenPons gateway (plugin host) will be the client to this service.
+service PluginHookService {
+  // Handles pre-request processing.
+  // Allows inspection and modification of request headers and body.
+  // Can deny the request.
+  rpc PreHandleRequest(stream ProcessingRequestChunk) returns (stream ProcessingResponseChunk);
+
+  // Handles post-response processing.
+  // Allows inspection and modification of response headers and body.
+  rpc PostHandleResponse(stream ProcessingRequestChunk) returns (stream ProcessingResponseChunk);
+}
+
+// Represents a chunk of data in the request or response processing stream.
+// This message is sent from the gateway to the plugin.
+message ProcessingRequestChunk {
+  // Unique ID for the overall request being processed by the gateway.
+  string request_id = 1;
+
+  // ID for the specific route that matched this request.
+  string route_id = 2;
+
+  // Plugin-specific configuration for this invocation (e.g., from the Route definition).
+  google.protobuf.Struct plugin_config = 3;
+
+  // General metadata about the request (user, principal, etc.)
+  map<string, string> request_metadata = 4;
+
+  oneof phase_data {
+    RequestHeaders request_headers = 5;    // Sent first for a request.
+    RequestBodyChunk request_body_chunk = 6; // Sent if body processing is enabled.
+    ResponseHeaders response_headers = 7;  // Sent first for a response.
+    ResponseBodyChunk response_body_chunk = 8; // Sent if body processing is enabled.
+    StreamTrailer stream_trailer = 9; // For gRPC trailers or end-of-stream signals
+  }
+}
+
+// Represents a chunk of data or a decision from the plugin back to the gateway.
+// This message is sent from the plugin to the gateway.
+message ProcessingResponseChunk {
+  oneof action {
+    HeaderMutation header_mutation = 1;     // Modify headers.
+    BodyMutation body_mutation = 2;         // Modify body chunk.
+    CommonResponse common_response = 3;     // Common responses like continue or deny.
+    ImmediateResponse immediate_response = 4; // Plugin wants to send an immediate response to client.
+  }
+}
+
+// Message for request or response headers.
+message HttpHeaders {
+  map<string, HeaderValue> headers = 1;
+  bool end_of_stream = 2; // True if this is the last message for headers (e.g. no body).
+}
+
+message HeaderValue {
+  repeated string values = 1;
+}
+
+// Request headers specific data
+message RequestHeaders {
+  HttpHeaders headers = 1;
+  string method = 2;
+  string path = 3;
+  string authority = 4; // Host header
+  string scheme = 5;
+}
+
+// Response headers specific data
+message ResponseHeaders {
+  HttpHeaders headers = 1;
+  int32 status_code = 2;
+}
+
+// Chunk of request or response body.
+message HttpBodyChunk {
+  bytes chunk = 1;
+  bool end_of_stream = 2; // True if this is the last body chunk.
+}
+
+message RequestBodyChunk {
+  HttpBodyChunk body_chunk = 1;
+}
+
+message ResponseBodyChunk {
+  HttpBodyChunk body_chunk = 1;
+}
+
+// For gRPC trailers or end-of-stream signals without body.
+message StreamTrailer {
+    map<string, HeaderValue> trailers = 1;
+}
+
+
+// --- Plugin Actions ---
+
+// Action to modify headers.
+message HeaderMutation {
+  repeated HeaderPair set_headers = 1;    // Set or add these headers.
+  repeated string remove_headers = 2; // Remove these headers.
+}
+
+message HeaderPair {
+  string key = 1;
+  string value = 2; // For simplicity, single value. Multiple values can be joined or handled by plugin.
+}
+
+// Action to modify a body chunk.
+message BodyMutation {
+  bytes chunk = 1; // The new chunk of data.
+  // Could add flags like REPLACE, APPEND, PREPEND if needed. For MVP, assume REPLACE.
+  bool end_of_stream = 2; // If this mutated chunk is the last one.
+}
+
+// Common responses from a plugin.
+message CommonResponse {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    CONTINUE_PROCESSING = 1; // Default: allow request/response to proceed.
+    DENY_REQUEST = 2;        // Block the request/response.
+  }
+  Status status = 1;
+  optional HttpHeaders headers_to_add = 2; // Optionally add/modify headers on continue/deny.
+  optional bytes body_override = 3;       // Optionally override body on continue/deny (e.g. custom error).
+  optional int32 status_code_override = 4; // Optionally override status code on deny.
+}
+
+// Action for the plugin to send an immediate response to the client, bypassing upstream.
+message ImmediateResponse {
+  int32 status_code = 1;
+  HttpHeaders headers = 2;
+  optional bytes body = 3;
+}

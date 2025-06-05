@@ -1,0 +1,48 @@
+parameters:
+  - name: groupId
+    in: path
+    required: true
+    description: Identifier of the group whose members are to be modified.
+    schema:
+      type: string
+      format: uuid
+
+patch:
+  tags:
+    - Admin - IAM
+  summary: Modify group members
+  operationId: modifyGroupMembers
+  description: Add or remove members from a group.
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/GroupMemberModificationRequest'
+  responses:
+    '200':
+      description: Group members updated successfully. The updated group is returned.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Group'
+    '400':
+      description: Invalid request (e.g., trying to add non-existent users, or remove users not in group).
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    '404':
+      description: Group not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

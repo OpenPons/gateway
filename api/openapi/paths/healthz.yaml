@@ -1,0 +1,18 @@
+get:
+  tags:
+    - Health
+  summary: Liveness probe
+  description: Checks if the gateway service is running (live). Does not imply readiness to serve traffic.
+  responses:
+    '200':
+      description: Service is live.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "ok"
+    '503':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error503' # If service is down

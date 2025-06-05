@@ -1,0 +1,77 @@
+parameters:
+  - $ref: '../parameters/_index.yaml#/ProviderId'
+
+get:
+  tags:
+    - Admin - Providers
+  summary: Get a specific provider
+  description: Retrieves details for a specific configured provider by its ID.
+  security:
+    - BearerAuth: [] # Requires admin privileges or specific view rights
+  responses:
+    '200':
+      description: Details of the provider.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Provider'
+    '401':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error401'
+    '403':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error403'
+    '404':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error404'
+    '500':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error500'
+
+patch:
+  tags:
+    - Admin - Providers
+  summary: Update a provider
+  description: Partially updates the configuration of an existing provider.
+  security:
+    - BearerAuth: [] # Requires admin privileges
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/ProviderUpdate'
+  responses:
+    '200':
+      description: Provider updated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Provider'
+    '400':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error400'
+    '401':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error401'
+    '403':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error403'
+    '404':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error404'
+    '500':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error500'
+
+delete:
+  tags:
+    - Admin - Providers
+  summary: Delete a provider
+  description: Deletes a configured provider. This may fail if the provider is still in use by routes or models.
+  security:
+    - BearerAuth: [] # Requires admin privileges
+  responses:
+    '204':
+      description: Provider deleted successfully.
+    '401':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error401'
+    '403':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error403'
+    '404':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error404'
+    '409': # Conflict if provider is in use
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error409'
+    '500':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error500'

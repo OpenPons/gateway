@@ -1,0 +1,219 @@
+components:
+  schemas:
+    Route:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the route.
+          readOnly: true
+        name:
+          type: string
+          description: A user-friendly name for the route.
+        priority:
+          type: integer
+          description: Priority of the route, lower numbers evaluated first. Defaults to 0.
+          default: 0
+        protocol:
+          type: string
+          enum: [http, grpc, a2a, mcp]
+          description: The protocol this route handles (relevant for how gateway processes it).
+        match:
+          type: object
+          description: Criteria for matching incoming requests to this route.
+          properties:
+            path_prefix:
+              type: string
+              description: URL path prefix to match.
+            host:
+              type: string
+              description: Host header to match.
+            methods:
+              type: array
+              items:
+                type: string # e.g., GET, POST
+              description: HTTP methods to match.
+            model_name:
+              type: string
+              description: Specific model name requested (e.g., from path or payload).
+            user_group:
+              type: string
+              description: User group associated with the request.
+            headers:
+              type: array
+              description: Headers to match. All specified headers must match.
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: Name of the header to match (case-insensitive).
+                  value:
+                    type: string
+                    description: Value of the header to match (exact match).
+                  # type: # Could add 'exact', 'regex', 'prefix', 'present'
+                  #   type: string
+                  #   enum: [exact, regex, prefix, present]
+                  #   default: exact
+                required:
+                  - name
+                  - value
+            query_params:
+              type: array
+              description: Query parameters to match. All specified query parameters must match.
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: Name of the query parameter.
+                  value:
+                    type: string
+                    description: Value of the query parameter to match (exact match).
+                  # type:
+                  #   type: string
+                  #   enum: [exact, regex, prefix, present]
+                  #   default: exact
+                required:
+                  - name
+                  - value
+          # Define required match criteria if any, e.g. path_prefix
+          # For flexibility, keeping it open for now.
+          # required: []
+        targets:
+          type: array
+          description: Ordered list of target backends for this route. Traffic is distributed according to policy.
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [model, agent, tool, service_url]
+                description: Type of the target.
+              ref:
+                type: string
+                description: Reference to the target (e.g., provider_id/model_id, agent_id, tool_id, or a direct URL for service_url).
+              version:
+                type: string
+                nullable: true
+                description: Specific version of the target model, agent, or tool.
+              weight:
+                type: integer
+                minimum: 0
+                maximum: 100 # Assuming weights are percentages or normalized later
+                description: Weight for load balancing strategies like 'weighted' (total weights for a route might be normalized).
+            required:
+              - type
+              - ref
+          minItems: 1
+        policy:
+          type: object
+          description: Policies applied to traffic on this route.
+          properties:
+            load_balancing_strategy:
+              type: string
+              enum: [weighted_round_robin, first_available, least_requests] # Examples
+              default: weighted_round_robin
+              description: How to distribute traffic among targets.
+            retry_policy:
+              type: object
+              properties:
+                num_retries:
+                  type: integer
+                  minimum: 0
+                  default: 0
+                retry_on: 
+                  type: array
+                  items:
+                    type: string 
+                  example: [\"5xx\", \"timeout\", \"connect_failure\"]
+                  description: Conditions for retrying (e.g., specific status codes, timeouts).
+            timeout_ms:
+              type: integer
+              description: Overall timeout for the request through this route in milliseconds.
+        allowed_roles:
+          type: array
+          items:
+            type: string
+          description: List of IAM role names that are permitted to use this route. If empty or undefined, may fall back to a default policy.
+        plugins:
+          type: object
+          description: Configuration for plugins to be executed on this route.
+          properties:
+            pre_request:
+              type: array
+              items:
+                type: object 
+                properties:
+                  name: 
+                    type: string 
+                  config: 
+                    type: object 
+                    additionalProperties: true 
+              description: List of plugins to execute before upstream call.
+            post_response:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  config:
+                    type: object
+                    additionalProperties: true
+              description: List of plugins to execute after upstream response.
+      required:
+        - name 
+        - match
+        - targets
+
+    RouteList:
+      type: object
+      properties:
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+        pagination:
+          $ref: './_index.yaml#/Pagination'
+
+    RouteCreate:
+      allOf:
+        - $ref: '#/components/schemas/Route'
+        # ID is readOnly, so it shouldn't be in create.
+        # We can list required fields for creation if they differ from Route's main required.
+        # For now, assuming 'name', 'match', 'targets' are key for creation.
+      # Example of overriding/specifying required for create if different:
+      # required:
+      #   - name
+      #   - match
+      #   - targets
+
+    RouteUpdate:
+      type: object
+      # All fields are optional for PATCH semantics
+      properties:
+        name:
+          type: string
+          description: A user-friendly name for the route.
+        protocol:
+          type: string
+          enum: [http, grpc, a2a, mcp]
+        match:
+          type: object
+          # Potentially allow partial updates to match criteria
+        targets:
+          type: array
+          items:
+            type: object
+            # Potentially allow partial updates to targets
+        policy:
+          type: object
+          # Potentially allow partial updates to policy
+        allowed_roles:
+          type: array
+          items:
+            type: string
+        plugins:
+          type: object
+          # Potentially allow partial updates to plugins

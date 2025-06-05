@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package openpons.v1alpha1;
+
+option go_package = "github.com/openpons/gateway/pkg/api/v1alpha1/mcp;mcppb";
+
+import "google/protobuf/struct.proto"; // For flexible arguments/results
+import "google/protobuf/timestamp.proto";
+
+// General MCP Envelope
+message MCPEnvelope {
+  string request_id = 1;
+  oneof payload {
+    InitializeRequest initialize_request = 2;
+    InitializeResult initialize_result = 3;
+    CallToolRequest call_tool_request = 4;
+    CallToolResult call_tool_result = 5;
+    GetPromptRequest get_prompt_request = 6;
+    GetPromptResult get_prompt_result = 7;
+    ReadResourceRequest read_resource_request = 8;
+    ReadResourceResult read_resource_result = 9;
+    ListToolsRequest list_tools_request = 10;
+    ListToolsResult list_tools_result = 11;
+    ListResourcesRequest list_resources_request = 12;
+    ListResourcesResult list_resources_result = 13;
+    ListPromptsRequest list_prompts_request = 14;
+    ListPromptsResult list_prompts_result = 15;
+    ErrorDetails error_details = 100;
+  }
+}
+
+// Common Error Details
+message ErrorDetails {
+  int32 code = 1; // MCP error code or HTTP status
+  string message = 2;
+  google.protobuf.Struct details = 3; // Optional additional details
+}
+
+// Initialize Messages
+message InitializeRequest {
+  // Based on MCP spec, could include client capabilities, etc.
+  // For MVP, can be simple.
+  string client_name = 1;
+  string client_version = 2;
+}
+
+message ServerCapabilities {
+  bool tools = 1;
+  bool resources = 2;
+  bool prompts = 3;
+  // Add other capabilities as defined in MCP spec
+}
+
+message InitializeResult {
+  string server_name = 1;
+  string server_version = 2;
+  ServerCapabilities capabilities = 3;
+  // Potentially server_id, etc.
+}
+
+// CallTool Messages
+message CallToolRequest {
+  string name = 1;
+  google.protobuf.Struct arguments = 2; // Flexible JSON-like arguments
+}
+
+message ToolOutput {
+  string type = 1; // e.g., "text", "json", "error", "file_uri"
+  google.protobuf.Value content = 2; // Flexible content based on type
+  string message = 3; // For error type
+  string mime_type = 4; // For file_uri or binary content
+}
+
+message CallToolResult {
+  repeated ToolOutput outputs = 1;
+}
+
+// GetPrompt Messages
+message GetPromptRequest {
+  string name = 1;
+  map<string, string> arguments = 2; // Prompt arguments are typically strings
+}
+
+message PromptMessage {
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    ROLE_SYSTEM = 1;
+    ROLE_USER = 2;
+    ROLE_ASSISTANT = 3;
+  }
+  Role role = 1;
+  // Content can be more complex in MCP, for MVP using simple text
+  string text_content = 2;
+  // Potentially repeated ContentPart for multimodal
+}
+
+message GetPromptResult {
+  repeated PromptMessage messages = 1;
+}
+
+// ReadResource Messages
+message ReadResourceRequest {
+  string uri = 1;
+}
+
+message ReadResourceResult {
+  bytes content = 1;
+  string mime_type = 2;
+  optional google.protobuf.Timestamp last_modified = 3;
+}
+
+// ListTools Messages
+message Tool {
+  string name = 1;
+  string description = 2;
+  google.protobuf.Struct input_schema = 3; // JSON schema for tool inputs
+}
+message ListToolsRequest {}
+message ListToolsResult {
+  repeated Tool tools = 1;
+}
+
+// ListResources Messages
+message Resource {
+  string uri = 1;
+  string description = 2;
+  string mime_type = 3;
+  optional google.protobuf.Timestamp last_modified = 4;
+}
+message ListResourcesRequest {}
+message ListResourcesResult {
+  repeated Resource resources = 1;
+}
+
+// ListPrompts Messages
+message PromptArgument {
+    string name = 1;
+    string description = 2;
+    bool required = 3;
+    string type = 4; // e.g. "string", "number" - simplified for proto
+}
+message Prompt {
+    string name = 1;
+    string description = 2;
+    repeated PromptArgument arguments = 3;
+}
+message ListPromptsRequest {}
+message ListPromptsResult {
+  repeated Prompt prompts = 1;
+}
+
+
+// MCP Gateway Service
+service MCPGatewayService {
+  // Bi-directional streaming RPC for MCP interactions
+  rpc Invoke(stream MCPEnvelope) returns (stream MCPEnvelope);
+}

@@ -1,0 +1,26 @@
+post:
+  tags:
+    - Auth
+  summary: Exchange OIDC code or API key for gateway JWT
+  description: |
+    Allows a client to exchange an OIDC authorization code (obtained via redirect from an OIDC provider)
+    or a pre-provisioned API key for an OpenPons Gateway JWT access token.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/TokenRequest'
+  responses:
+    '200':
+      description: Successfully exchanged for a token.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/TokenResponse'
+    '400':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error400'
+    '401':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error401'
+    '500':
+      $ref: '../openpons_v1alpha1.yaml#/components/responses/Error500'

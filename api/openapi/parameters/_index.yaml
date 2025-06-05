@@ -1,0 +1,139 @@
+# This file will aggregate all reusable parameter definitions.
+# Example:
+# UserId:
+#   $ref: './user_parameters.yaml#/UserId'
+
+PageLimit:
+  name: limit
+  in: query
+  description: Maximum number of items to return per page.
+  required: false
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 100
+    default: 20
+
+PageCursor:
+  name: cursor
+  in: query
+  description: Opaque cursor for fetching the next page of results.
+  required: false
+  schema:
+    type: string
+
+ProviderId:
+  name: providerId
+  in: path
+  required: true
+  description: Identifier of the Provider.
+  schema:
+    type: string
+    format: uuid
+
+ModelInternalId: # Renamed from modelId to avoid conflict with proxy path param
+  name: modelInternalId
+  in: path
+  required: true
+  description: Internal identifier of the Model configuration.
+  schema:
+    type: string
+    format: uuid # Or a slug if preferred, but UUID is good for internal IDs
+
+ToolInternalId: # Renamed from toolId
+  name: toolInternalId
+  in: path
+  required: true
+  description: Internal identifier of the Tool configuration.
+  schema:
+    type: string
+    format: uuid
+
+AgentId:
+  name: agentId
+  in: path
+  required: true
+  description: Identifier of the Agent.
+  schema:
+    type: string
+    format: uuid
+
+RouteId:
+  name: routeId
+  in: path
+  required: true
+  description: Identifier of the Route.
+  schema:
+    type: string
+    format: uuid
+
+UserId:
+  name: userId
+  in: path
+  required: true
+  description: Identifier of the User.
+  schema:
+    type: string
+    format: uuid
+
+GroupId:
+  name: groupId
+  in: path
+  required: true
+  description: Identifier of the Group.
+  schema:
+    type: string
+    format: uuid
+
+RoleName: # Roles identified by name
+  name: roleName
+  in: path
+  required: true
+  description: Unique name of the Role.
+  schema:
+    type: string
+
+BindingId:
+  name: bindingId
+  in: path
+  required: true
+  description: Identifier of the RoleBinding.
+  schema:
+    type: string
+    format: uuid
+
+SecretId:
+  name: secretId
+  in: path
+  required: true
+  description: Identifier of the Secret.
+  schema:
+    type: string
+    format: uuid
+
+PluginId:
+  name: pluginId
+  in: path
+  required: true
+  description: Identifier of the Plugin.
+  schema:
+    type: string # e.g., "pii-masker" or "com.example.myplugin"
+
+# Proxy path parameters
+ModelIdProxy: # Distinct name for proxy path param
+  name: modelId
+  in: path
+  required: true
+  description: User-facing identifier of the Model to proxy requests to.
+  schema:
+    type: string # This is the user-facing ID, not necessarily UUID
+    example: "openai-gpt4o"
+
+ToolIdProxy: # Distinct name for proxy path param
+  name: toolId
+  in: path
+  required: true
+  description: User-facing identifier of the Tool to invoke.
+  schema:
+    type: string
+    example: "filesystem-list-dir"

@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package openpons.v1alpha1;
+
+option go_package = "github.com/openpons/gateway/pkg/api/v1alpha1/chat;chatpb";
+
+import "google/protobuf/struct.proto"; // For tool call arguments/results if needed
+
+// Mirrors OpenAI's chat message structure
+message ChatMessage {
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    ROLE_SYSTEM = 1;
+    ROLE_USER = 2;
+    ROLE_ASSISTANT = 3;
+    ROLE_TOOL = 4;
+  }
+  Role role = 1;
+  string content = 2;
+  string name = 3; // Optional: For tool calls and tool call results
+
+  message ToolCall {
+    string id = 1;
+    string type = 2; // Typically "function"
+    FunctionCall function = 3;
+  }
+  message FunctionCall {
+    string name = 1;
+    string arguments = 2; // JSON string of arguments
+  }
+  repeated ToolCall tool_calls = 4;
+  string tool_call_id = 5; // For tool response messages
+}
+
+// Mirrors OpenAI's chat delta structure for streaming
+message ChatDelta {
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    ROLE_SYSTEM = 1;
+    ROLE_USER = 2;
+    ROLE_ASSISTANT = 3;
+    ROLE_TOOL = 4;
+  }
+  optional Role role = 1;
+  optional string content = 2;
+
+  message ToolCallChunk {
+    int32 index = 1;
+    string id = 2;
+    string type = 3; // Typically "function"
+    FunctionCall function = 4;
+  }
+  message FunctionCall {
+    optional string name = 1;
+    optional string arguments = 2; // JSON string of argument chunks
+  }
+  repeated ToolCallChunk tool_calls = 3;
+
+  // Potentially other fields like finish_reason for the last chunk
+  optional string finish_reason = 4;
+}
+
+// Service for chat completions
+service ChatCompletionService {
+  // Bi-directional streaming RPC for chat
+  rpc ChatStream(stream ChatMessage) returns (stream ChatDelta);
+}

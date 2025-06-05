@@ -1,0 +1,54 @@
+get:
+  tags:
+    - Admin - IAM
+  summary: List roles
+  operationId: listRoles
+  security:
+    - BearerAuth: [\"admin:iam:read\"]
+  # No pagination for roles typically, but can be added if many roles are expected.
+  responses:
+    '200':
+      description: A list of roles.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/RoleList'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+post:
+  tags:
+    - Admin - IAM
+  summary: Create a new role
+  operationId: createRole
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/RoleCreateRequest'
+  responses:
+    '201':
+      description: Role created successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Role'
+    '409': # Conflict if role name already exists
+      description: Role with this name already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

@@ -1,0 +1,47 @@
+get:
+  tags:
+    - Settings # As defined in openpons_v1alpha1.yaml
+  summary: Get current gateway settings
+  operationId: getGatewaySettings
+  security:
+    - BearerAuth: [\"admin:settings:read\"] # Example scope
+  responses:
+    '200':
+      description: Current gateway settings.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Settings' # Refers to Settings schema in _index.yaml
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+patch:
+  tags:
+    - Settings
+  summary: Update gateway settings
+  operationId: updateGatewaySettings
+  security:
+    - BearerAuth: [\"admin:settings:write\"] # Example scope
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/Settings' # Update uses the same schema, all fields are typically optional for PATCH
+  responses:
+    '200':
+      description: Settings updated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Settings'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

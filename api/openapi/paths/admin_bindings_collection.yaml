@@ -1,0 +1,92 @@
+get:
+  tags:
+    - Admin - IAM
+  summary: List role bindings
+  operationId: listRoleBindings
+  security:
+    - BearerAuth: [\"admin:iam:read\"]
+  parameters:
+    - name: principal_id
+      in: query
+      description: Filter bindings by principal ID (user, group, or service account ID).
+      required: false
+      schema:
+        type: string
+    - name: principal_type
+      in: query
+      description: Filter bindings by principal type. Must be used with principal_id.
+      required: false
+      schema:
+        type: string
+        enum: [user, group, service_account]
+    - name: role_name
+      in: query
+      description: Filter bindings by role name.
+      required: false
+      schema:
+        type: string
+    # Add pagination parameters if needed
+    - name: limit
+      in: query
+      description: Maximum number of bindings to return.
+      schema:
+        type: integer
+        default: 25
+    - name: offset
+      in: query
+      description: Offset for pagination.
+      schema:
+        type: integer
+        default: 0
+  responses:
+    '200':
+      description: A list of role bindings.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/RoleBindingList'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+post:
+  tags:
+    - Admin - IAM
+  summary: Create a new role binding
+  operationId: createRoleBinding
+  security:
+    - BearerAuth: [\"admin:iam:write\"]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/_index.yaml#/RoleBindingCreateRequest'
+  responses:
+    '201':
+      description: Role binding created successfully.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/RoleBinding'
+    '400': # Bad request if principal or role doesn't exist
+      description: Invalid request (e.g., principal or role not found).
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    '409': # Conflict if binding already exists
+      description: This role binding already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'

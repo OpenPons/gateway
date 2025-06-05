@@ -1,0 +1,58 @@
+parameters:
+  - name: apiKeyId
+    in: path
+    required: true
+    description: Identifier (prefix) of the API key.
+    schema:
+      type: string
+
+get:
+  tags:
+    - Admin - IAM
+  summary: Get API key metadata
+  operationId: getApiKeyById
+  description: Retrieves metadata for an API key. Does not return the key value.
+  security:
+    - BearerAuth: [\"admin:iam:read\"] # Or admin:iam:apikeys:read
+  responses:
+    '200':
+      description: Successfully retrieved API key metadata.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/APIKey' # Standard APIKey schema without value
+    '404':
+      description: API Key not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+
+delete:
+  tags:
+    - Admin - IAM
+  summary: Revoke/Delete an API key
+  operationId: deleteApiKey
+  security:
+    - BearerAuth: [\"admin:iam:write\"] # Or admin:iam:apikeys:write
+  responses:
+    '204':
+      description: API key revoked/deleted successfully.
+    '404':
+      description: API Key not found.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/_index.yaml#/Error'
