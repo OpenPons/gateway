@@ -16,6 +16,7 @@ import (
 	"io" // For rand.Read
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -231,10 +232,63 @@ func (vsm *VaultSecretManager) CreateSecret(ctx context.Context, name, secretTyp
 
 // ListSecretsMetadata lists secrets from Vault. This might be complex depending on how metadata is stored.
 func (vsm *VaultSecretManager) ListSecretsMetadata(ctx context.Context) ([]SecretMetadata, error) {
-	// Placeholder implementation
-	log.Println("VaultSecretManager: ListSecretsMetadata called (placeholder)")
-	// Example: vsm.client.KVv2(vsm.mountPath).List(ctx, "") and then Get metadata for each.
-	return nil, fmt.Errorf("Vault ListSecretsMetadata not yet implemented")
+	listPath := "secret/metadata/" + vsm.basePath
+	secretList, err := vsm.client.Logical().ListWithContext(ctx, listPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list secrets from Vault path %s: %w", vsm.basePath, err)
+	}
+	if secretList == nil || secretList.Data == nil {
+		return []SecretMetadata{}, nil
+	}
+	keysIface, ok := secretList.Data["keys"]
+	if !ok {
+		return nil, fmt.Errorf("unexpected response listing Vault secrets at %s", vsm.basePath)
+	}
+
+	keys, ok := keysIface.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid keys format from Vault list at %s", vsm.basePath)
+	}
+
+	kv := vsm.client.KVv2("secret")
+	metadata := make([]SecretMetadata, 0, len(keys))
+	for _, ki := range keys {
+		key, ok := ki.(string)
+		if !ok {
+			continue
+		}
+		key = strings.TrimSuffix(key, "/")
+		sec, err := kv.Get(ctx, vsm.basePath+"/"+key)
+		if err != nil {
+			log.Printf("VaultSecretManager: Failed to fetch metadata for %s: %v", key, err)
+			continue
+		}
+		if sec == nil || sec.Data == nil {
+			continue
+		}
+		dataMap, ok := sec.Data["data"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name, _ := dataMap["name"].(string)
+		typ, _ := dataMap["type"].(string)
+		providerID, _ := dataMap["provider_id"].(string)
+		createdAtStr, _ := dataMap["created_at"].(string)
+		createdAt, err := time.Parse(time.RFC3339Nano, createdAtStr)
+		if err != nil {
+			createdAt = time.Time{}
+		}
+
+		metadata = append(metadata, SecretMetadata{
+			ID:         key,
+			Name:       name,
+			Type:       typ,
+			ProviderID: providerID,
+			CreatedAt:  createdAt,
+		})
+	}
+
+	return metadata, nil
 }
 
 // DeleteSecret deletes a secret from Vault.
